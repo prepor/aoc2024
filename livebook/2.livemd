@@ -1,0 +1,69 @@
+# Day 2
+
+## Utils
+
+```elixir
+defmodule U do
+  def numbers(l) do 
+    String.split(l) |> Enum.map(&String.to_integer/1)
+  end
+end
+```
+
+```elixir
+input = File.stream!("2/example.txt") |> Stream.map(&U.numbers/1)
+```
+
+```elixir
+defmodule Day2 do
+  def is_safe([n1, n2 | _] = l) do 
+    is_increasing = 0 < n1 - n2
+    is_safe(is_increasing, l)
+  end
+
+  defp is_safe(_, [_]), do: true
+
+  defp is_safe(is_increasing, [p, n | tail]) do
+    diff = p - n
+    ((0 < diff) == is_increasing) && (0 < abs(diff)) && (abs(diff) < 4) && is_safe(is_increasing, [n | tail])
+  end
+end
+```
+
+```elixir
+input |> Stream.filter(&Day2.is_safe/1) |> Enum.count()
+```
+
+```elixir
+defmodule Day2_2 do
+  def is_safe(l), do: is_safe(nil, l, true)
+
+  defp is_safe(_, [_], _), do: true
+  
+  defp is_safe(is_increasing, [n1, n2 | tail], can_fail) do 
+    IO.inspect({is_increasing, n1, n2, can_fail})
+    if (n1 == n2) || 3 < abs(n1 - n2) do 
+      if can_fail do
+        is_safe(is_increasing, [n2 | tail], false)
+      else
+        false
+      end
+    else
+      is_increasing = if is_increasing == nil, do: 0 < n2 - n1, else: is_increasing
+      if 0 < (n2 - n1) != is_increasing do
+        if can_fail do
+          is_safe(is_increasing, [n2 | tail], false)
+        else
+          false
+        end
+      else
+        is_safe(is_increasing, [n2 | tail], can_fail)
+      end
+    end
+  end
+end
+```
+
+```elixir
+input |> Stream.filter(&Day2_2.is_safe/1) |> Enum.count()
+```
