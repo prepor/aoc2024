@@ -1,0 +1,180 @@
+# Day 4
+
+## Part 1
+
+```elixir
+input = File.stream!("4/input.txt")
+# input = File.stream!("4/example.txt")
+```
+
+```elixir
+defmodule P1.Parser do
+  def parse(input) do
+    {_, xs, map} = Enum.reduce(input, {0, [], %{}}, fn line, {line_number, xs, map} ->
+      {_, xs, map} =
+        Enum.reduce(String.codepoints(line), {0, xs, map}, fn
+          "X", {column, xs, map} ->
+            {column + 1, [{column, line_number} | xs], map}
+
+          letter, {column, xs, map} when letter in ["M", "A", "S"] ->
+            {column + 1, xs, Map.put(map, {column, line_number}, letter)}
+
+          _, {column, xs, map} ->
+            {column + 1, xs, map}
+        end)
+
+      {line_number + 1, xs, map}
+    end)
+    {xs, map}
+  end
+end
+```
+
+```elixir
+data = input |> P1.Parser.parse
+```
+
+```elixir
+defmodule P1.Counter do
+  def count({xs, letters}) do
+    count(0, xs, letters)
+  end
+
+  defp count(acc, [], _) do
+    acc
+  end
+
+  defp count(acc, [x | xs], map) do
+    count(acc + find(x, map), xs, map)
+  end
+
+  def find(x, map) do
+    Enum.reduce(
+      [
+        find_0(x, map),
+        find_45(x, map),
+        find_90(x, map),
+        find_135(x, map),
+        find_180(x, map),
+        find_225(x, map),
+        find_270(x, map),
+        find_315(x, map)
+      ],
+      0,
+      fn
+        true, acc -> 
+          # IO.inspect(x)
+          acc + 1
+        false, acc -> acc
+      end
+    )
+  end
+
+  def find_0({x, y}, map) do
+    map[{x, y - 1}] == "M" && map[{x, y - 2}] == "A" && map[{x, y - 3}] == "S"
+  end
+
+  def find_45({x, y}, map) do
+    map[{x + 1, y - 1}] == "M" && map[{x + 2, y - 2}] == "A" &&
+      map[{x + 3, y - 3}] == "S"
+  end
+
+  def find_90({x, y}, map) do
+    map[{x + 1, y}] == "M" && map[{x + 2, y}] == "A" && map[{x + 3, y}] == "S"
+  end
+
+  def find_135({x, y}, map) do
+    map[{x + 1, y + 1}] == "M" && map[{x + 2, y + 2}] == "A" &&
+      map[{x + 3, y + 3}] == "S"
+  end
+
+  def find_180({x, y}, map) do
+    map[{x, y + 1}] == "M" && map[{x, y + 2}] == "A" && map[{x, y + 3}] == "S"
+  end
+
+  def find_225({x, y}, map) do
+    map[{x - 1, y + 1}] == "M" && map[{x - 2, y + 2}] == "A" &&
+      map[{x - 3, y + 3}] == "S"
+  end
+
+  def find_270({x, y}, map) do
+    map[{x - 1, y}] == "M" && map[{x - 2, y}] == "A" && map[{x - 3, y}] == "S"
+  end
+
+  def find_315({x, y}, map) do
+    map[{x - 1, y - 1}] == "M" && map[{x - 2, y - 2}] == "A" &&
+      map[{x - 3, y - 3}] == "S"
+  end
+end
+```
+
+```elixir
+P1.Counter.count(data)
+```
+
+## Part 2
+
+```elixir
+defmodule P2.Parser do
+  def parse(input) do
+    {_, xs, map} = Enum.reduce(input, {0, [], %{}}, fn line, {line_number, xs, map} ->
+      {_, xs, map} =
+        Enum.reduce(String.codepoints(line), {0, xs, map}, fn
+          "A", {column, xs, map} ->
+            {column + 1, [{column, line_number} | xs], map}
+
+          letter, {column, xs, map} when letter in ["M", "S"] ->
+            {column + 1, xs, Map.put(map, {column, line_number}, letter)}
+
+          _, {column, xs, map} ->
+            {column + 1, xs, map}
+        end)
+
+      {line_number + 1, xs, map}
+    end)
+    {xs, map}
+  end
+end
+```
+
+```elixir
+defmodule P2.Counter do
+  def count({xs, letters}) do
+    count(0, xs, letters)
+  end
+
+  defp count(acc, [], _) do
+    acc
+  end
+
+  defp count(acc, [x | xs], map) do
+    count(acc + find(x, map), xs, map)
+  end
+
+  def find(x, map) do
+    if (find_tl_br(x, map) && find_tr_bl(x, map)) do
+      1
+    else
+      0
+    end
+  end
+
+  def find_tl_br({x, y}, map) do
+    (map[{x - 1, y - 1}] == "M" && map[{x + 1, y + 1}] == "S") ||
+      (map[{x - 1, y - 1}] == "S" && map[{x + 1, y + 1}] == "M")
+  end
+
+  def find_tr_bl({x, y}, map) do
+    (map[{x + 1, y - 1}] == "M" && map[{x - 1, y + 1}] == "S") ||
+      (map[{x + 1, y - 1}] == "S" && map[{x - 1, y + 1}] == "M")
+  end
+end
+```
+
+```elixir
+data2 = input |> P2.Parser.parse
+```
+
+```elixir
+P2.Counter.count(data2)
+```
