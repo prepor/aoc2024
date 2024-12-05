@@ -1,0 +1,136 @@
+# Day 5
+
+```elixir
+Mix.install(
+  [
+    {:nimble_parsec, "~> 1.4"}
+  ]
+)
+```
+
+## Part 1
+
+```elixir
+# input = File.read!("5/example.txt")
+input = File.read!("5/input.txt")
+```
+
+```elixir
+defmodule U do
+  defmodule Parser do
+    import NimbleParsec
+
+    eol =
+      choice([
+        string("\r\n"),
+        string("\n"),
+        eos()
+      ])
+
+    rule = integer(min: 1) |> ignore(string("|")) |> integer(min: 1) |> ignore(eol) |> tag(:rule)
+    rules = repeat(rule) |> tag(:rules)
+
+    update =
+      integer(min: 1)
+      |> repeat(ignore(string(",")) |> concat(integer(min: 1)))
+      |> ignore(eol)
+      |> tag(:update)
+
+    updates = repeat(update) |> tag(:updates)
+
+    defparsec(:input, rules |> concat(ignore(eol)) |> concat(updates))
+  end
+
+  def parse(input) do
+    {:ok, [rules: rules, updates: updates], "", _, _, _} = Parser.input(input)
+
+    {rules |> Enum.map(fn {:rule, [n1, n2]} -> {n1, n2} end),
+     updates |> Enum.map(fn {:update, values} -> values end)}
+  end
+
+  def middle(l) do
+    Enum.at(l, (Enum.count(l) / 2) |> trunc)
+  end
+end
+```
+
+```elixir
+{rules, upgrades} = input |> U.parse
+```
+
+```elixir
+defmodule Part1 do
+  def check_upgrade(pages, rules) do
+    check_upgrade([], pages, rules)
+  end
+
+  def check_upgrade(_, [], _), do: true
+
+  def check_upgrade(before, [p | tail], rules) do
+    Enum.all?(rules, fn
+      {^p, should_after} ->
+        !Enum.any?(before, fn
+          ^should_after -> true
+          _ -> false
+        end)
+      _ ->
+        true
+    end) && check_upgrade([p | before], tail, rules)
+  end
+end
+```
+
+```elixir
+Enum.reduce(upgrades, 0, fn upgrade, sum ->
+  if Part1.check_upgrade(upgrade, rules) do
+    sum + U.middle(upgrade)
+  else
+    sum
+  end
+end)
+```
+
+## Part2
+
+```elixir
+defmodule Part2 do
+  def reorder(upgrade, rules) do
+    reorder([], upgrade, rules, rules)
+  end
+
+  def reorder(before, [], [], _) do
+    before
+  end
+
+  def reorder(before, [p | tail], [], rules) do
+    reorder(before ++ [p], tail, rules, rules)
+  end
+
+  def reorder(before, [p | afte], [{p, should_after} | tail], rules) do
+    if should_after in before do
+      reorder([], [p | before] ++ afte, rules, rules)
+    else
+      reorder(before, [p | afte], tail, rules)
+    end
+  end
+
+  def reorder(before, afte, [_ | tail], rules) do
+    reorder(before, afte, tail, rules)
+  end
+end
+```
+
+```elixir
+Enum.reduce(upgrades, 0, fn upgrade, sum ->
+  if Part1.check_upgrade(upgrade, rules) do
+    sum
+  else
+    reordered = Part2.reorder(upgrade, rules)
+    sum + U.middle(reordered)
+  end
+end)
+```
+
+```elixir
+Part2.reorder([61, 13, 29], rules) |> inspect(charlists: :as_lists)
+```
