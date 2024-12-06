@@ -1,0 +1,126 @@
+# Day 6
+
+## Part 1
+
+```elixir
+# input = File.stream!("6/example.txt")
+
+input = File.stream!("6/input.txt")
+```
+
+```elixir
+defmodule U do
+  def parse(input) do
+    {_, obstacles, init_pos} = Enum.reduce(input, {0, MapSet.new(), nil}, fn line, {i, obstacles, init_pos} ->
+      {_, obstacles, init_pos} = Enum.reduce(String.codepoints(line), {0, obstacles, init_pos}, 
+        fn char, {j, obstacles, init_pos} ->
+          case char do
+            "." -> {j + 1, obstacles, init_pos}
+            "#" -> {j + 1, MapSet.put(obstacles, {i, j}), init_pos}
+            "^" -> {j + 1, obstacles, {i, j, :up}}
+            _ -> {j + 1, obstacles, init_pos}
+          end
+      end)
+      {i + 1, obstacles, init_pos}
+    end)
+    size = {(Enum.at(input, 0) |> String.codepoints() |> Enum.count()) - 1, input |> Enum.to_list |> Enum.count()}
+    {init_pos, obstacles, size}
+  end
+end
+```
+
+```elixir
+{pos, obstacles, size} = input |> U.parse
+```
+
+```elixir
+defmodule P1 do
+  def step(pos, obstacles, size) do
+    step(pos, MapSet.new(), obstacles, size)
+  end
+
+  defp step({i, j, dir}, path, obstacles, {w, h} = size) do
+    path = MapSet.put(path, {i, j})
+    {i_next, j_next} =
+      case dir do
+        :up -> {i - 1, j}
+        :right -> {i, j + 1}
+        :down -> {i + 1, j}
+        :left -> {i, j - 1}
+      end
+
+    cond do
+      i_next < 0 || i_next >= h || j_next < 0 || j_next >= w ->
+        path
+
+      MapSet.member?(obstacles, {i_next, j_next}) ->
+        dir_next = case dir do
+          :up -> :right
+          :right -> :down
+          :down -> :left
+          :left -> :up
+        end
+        step({i, j, dir_next}, path, obstacles, size)
+      true ->
+        step({i_next, j_next, dir}, path, obstacles, size)
+    end
+  end
+end
+```
+
+```elixir
+P1.step(pos, obstacles, size) |> Enum.count
+```
+
+## Part 2
+
+```elixir
+candidates = P1.step(pos, obstacles, size)
+```
+
+```elixir
+defmodule P2 do
+  def step(pos, obstacles, size) do
+    step(pos, MapSet.new(), obstacles, size)
+  end
+
+  defp step({i, j, dir} = pos, path, obstacles, {w, h} = size) do
+    if MapSet.member?(path, pos) do
+      true
+    else
+      path = MapSet.put(path, pos)
+
+      {i_next, j_next} =
+        case dir do
+          :up -> {i - 1, j}
+          :right -> {i, j + 1}
+          :down -> {i + 1, j}
+          :left -> {i, j - 1}
+        end
+
+      cond do
+        i_next < 0 || i_next >= h || j_next < 0 || j_next >= w ->
+          false
+
+        MapSet.member?(obstacles, {i_next, j_next}) ->
+          dir_next =
+            case dir do
+              :up -> :right
+              :right -> :down
+              :down -> :left
+              :left -> :up
+            end
+
+          step({i, j, dir_next}, path, obstacles, size)
+
+        true ->
+          step({i_next, j_next, dir}, path, obstacles, size)
+      end
+    end
+  end
+end
+```
+
+```elixir
+Enum.count(candidates, fn new_obst -> P2.step(pos, MapSet.put(obstacles, new_obst), size) end)
+```
