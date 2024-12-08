@@ -1,0 +1,68 @@
+# Day 7
+
+## Part 1
+
+```elixir
+# input = File.stream!("7/example.txt")
+input = File.stream!("7/input.txt")
+```
+
+```elixir
+defmodule U do
+  def parse(l) do
+    [_, sum, list] = Regex.run(~r/(\d+):\s*((?:\d+\s*)+)/, l)
+
+    list = Enum.map(String.split(list), &String.to_integer/1)
+    {String.to_integer(sum), list}
+  end
+end
+```
+
+```elixir
+data = input |> Enum.map(&U.parse/1)
+```
+
+```elixir
+defmodule P1 do
+  def is_calculated(exp, [exp]), do: true
+  def is_calculated(_, [_]), do: false
+  def is_calculated(exp, [n1, n2 | tail]) do
+    is_calculated(exp, [n1 + n2 | tail]) || is_calculated(exp, [n1 * n2 | tail])
+  end
+end
+```
+
+```elixir
+Enum.reduce(data, 0, fn {exp, numbers}, sum ->
+  if P1.is_calculated(exp, numbers) do
+    sum + exp 
+  else 
+    sum
+  end
+end)
+```
+
+```elixir
+defmodule P2 do
+  def is_calculated(exp, [exp]), do: true
+  def is_calculated(_, [_]), do: false
+
+  def is_calculated(exp, [n1, n2 | tail]) do
+    is_calculated(exp, [n1 + n2 | tail]) ||
+      is_calculated(exp, [n1 * n2 | tail]) ||
+      is_calculated(exp, [
+        (Integer.to_string(n1) <> Integer.to_string(n2)) |> String.to_integer() | tail
+      ])
+  end
+end
+```
+
+```elixir
+Enum.reduce(data, 0, fn {exp, numbers}, sum ->
+  if P2.is_calculated(exp, numbers) do
+    sum + exp 
+  else 
+    sum
+  end
+end)
+```
