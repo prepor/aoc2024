@@ -1,0 +1,117 @@
+# Day 8
+
+## Part 1
+
+```elixir
+input = File.stream!("8/input.txt")
+# input = File.stream!("8/example.txt")
+```
+
+```elixir
+defmodule U do
+  def parse(input) do
+    {_, nodes} =
+      Enum.reduce(input, {0, %{}}, fn line, {line_no, nodes} ->
+        {_, nodes} = Enum.reduce(String.codepoints(line), {0, nodes}, fn char, {col, nodes} ->
+          if Regex.match?(~r/\w/, char) do
+            n = Map.get(nodes, char, [])
+            {col + 1, Map.put(nodes, char, [{line_no, col} | n])}
+          else
+            {col + 1, nodes}
+          end
+        end)
+        {line_no + 1, nodes}
+      end)
+
+    size =
+      {(Enum.at(input, 0) |> String.codepoints() |> Enum.count()) - 1,
+       input |> Enum.to_list() |> Enum.count()}
+
+    {size, nodes}
+  end
+end
+```
+
+```elixir
+{size, nodes} = U.parse(input)
+```
+
+```elixir
+defmodule P1 do
+  def antinodes({w, h}, nodes) do
+    Enum.reduce(nodes, MapSet.new(), fn {_, nodes}, res ->
+      Enum.reduce(nodes, res, fn {x1, y1} = n1, res ->
+        Enum.reduce(nodes, res, fn {x2, y2} = n2, res ->
+          if n1 != n2 do
+            {x_diff, y_diff} = {x1 - x2, y1 - y2}
+
+            {x_new, y_new} = {x1 + x_diff, y1 + y_diff}
+
+            res =
+              if x_new >= 0 && x_new < w && y_new >= 0 && y_new < h do
+                MapSet.put(res, {x_new, y_new})
+              else
+                res
+              end
+
+            {x_new, y_new} = {x2 - x_diff, y2 - y_diff}
+
+            if x_new >= 0 && x_new < w && y_new >= 0 && y_new < h do
+              MapSet.put(res, {x_new, y_new})
+            else
+              res
+            end
+          else
+            res
+          end
+        end)
+      end)
+    end)
+  end
+end
+```
+
+```elixir
+P1.antinodes(size, nodes) |> Enum.count
+```
+
+## Part 2
+
+```elixir
+defmodule P2 do
+  def antinodes(size, nodes) do
+    Enum.reduce(nodes, MapSet.new(), fn {_, nodes}, res ->
+      Enum.reduce(nodes, res, fn {x1, y1} = n1, res ->
+        Enum.reduce(nodes, res, fn {x2, y2} = n2, res ->
+          if n1 != n2 do
+            {x_diff, y_diff} = {x1 - x2, y1 - y2}
+
+            res
+            |> MapSet.put(n1)
+            |> MapSet.put(n2)
+            |> add_antinodes(size, n1, {x_diff, y_diff})
+            |> add_antinodes(size, n2, {-x_diff, -y_diff})
+          else
+            res
+          end
+        end)
+      end)
+    end)
+  end
+
+  def add_antinodes(res, {w, h} = size, {x, y}, {x_diff, y_diff} = diff) do
+    {x_new, y_new} = {x + x_diff, y + y_diff}
+
+    if x_new >= 0 && x_new < w && y_new >= 0 && y_new < h do
+      MapSet.put(res, {x_new, y_new})
+      |> add_antinodes(size, {x_new, y_new}, diff)
+    else
+      res
+    end
+  end
+end
+```
+
+```elixir
+P2.antinodes(size, nodes) |> Enum.count
+```
