@@ -1,0 +1,163 @@
+# Day 9
+
+## Part 1
+
+```elixir
+# input = "2333133121414131402"
+input = File.read!("9/input.txt")
+```
+
+```elixir
+defmodule U do
+  def parse(input) do
+    parse(String.codepoints(input), [], 0, :file)
+  end
+
+  def parse([], res, _, _) do
+    res |> Enum.reverse()
+  end
+
+  def parse([n | tail], res, id, :file) do
+    parse(tail, [{:file, id, String.to_integer(n)} | res], id + 1, :free)
+  end
+
+  def parse(["0" | tail], res, id, :free) do
+    parse(tail, res, id, :file)
+  end
+
+    def parse(["\n" | tail], res, id, type) do
+    parse(tail, res, id, type)
+  end
+
+  def parse([n | tail], res, id, :free) do
+    parse(tail, [{:free, String.to_integer(n)} | res], id, :file)
+  end
+
+  def stringify([]), do: ""
+  def stringify([{:free, n} | tail]) do
+    String.duplicate(".", n) <> stringify(tail)
+  end
+
+  def stringify([{:file, id, n} | tail]) do
+    String.duplicate(Integer.to_string(id), n) <> stringify(tail)
+  end
+end
+```
+
+```elixir
+layout = U.parse(input)
+```
+
+```elixir
+defmodule P1 do
+  def rightmost(layout) do
+    # IO.inspect({:rightmost, layout})
+    rightmost(Enum.reverse(layout), [])
+  end
+
+  def rightmost([{:file, _, _} = file | tail], acc) do
+    rearrange(file, Enum.reverse(tail) ++ acc)
+  end
+
+  def rightmost([block | tail], acc) do
+    rightmost(tail, [block | acc])
+  end
+
+  def rearrange(file, layout) do
+    rearrange(file, layout, [])
+  end
+
+  def rearrange(file, [], acc), do: [file | acc] |> Enum.reverse()
+
+  def rearrange({:file, id, size}, [{:free, free} | tail], acc) do
+    # IO.inspect({:rearrange,{:file, id, size}, [{:free, free} | tail], acc})
+    cond do
+      free == size ->
+        rightmost(Enum.reverse([{:file, id, size} | acc]) ++ tail)
+
+      free < size ->
+        rearrange({:file, id, size - free}, tail, [{:file, id, free} | acc])
+
+      free > size ->
+        rightmost(Enum.reverse([{:free, free - size}, {:file, id, size} | acc]) ++ tail)
+    end
+  end
+
+  def rearrange(file, [x | tail], acc) do
+    rearrange(file, tail, [x | acc])
+  end
+
+  def checksum(layout) do
+    checksum(0, layout, 0)
+  end
+
+  def checksum(_, [], acc) do
+    acc
+  end
+
+  def checksum(block_id, [{:file, _, 0} | tail], acc) do
+    checksum(block_id, tail, acc)
+  end
+
+  def checksum(block_id, [{:file, id, n} | tail], acc) do
+    checksum(block_id + 1, [{:file, id, n - 1} | tail], acc + block_id * id)
+  end
+
+  def checksum(block_id, [{:free, size} | tail], acc) do
+    checksum(block_id + size, tail, acc)
+  end
+end
+```
+
+```elixir
+rearranged = P1.rightmost(layout)
+```
+
+```elixir
+rearranged |> P1.checksum()
+```
+
+## Part 2
+
+```elixir
+defmodule P2 do
+  def rearrange(layout) do
+    rearrange(Enum.reverse(layout), [])
+  end
+
+  def rearrange([], acc) do
+    acc
+  end
+
+  def rearrange([{:free, _} = x | tail], acc) do
+    rearrange(tail, [x | acc])
+  end
+
+  def rearrange([{:file, _, size} = x | tail], acc) do
+    inserted = insert(x, Enum.reverse(tail), [])
+    if inserted do
+      rearrange(Enum.reverse(inserted), [{:free, size} | acc])
+    else
+      rearrange(tail, [x | acc])
+    end
+  end
+
+  def insert(_, [], _), do: nil
+
+  def insert({:file, id, size}, [{:free, free} | tail], acc) when free >= size do
+    Enum.reverse([{:free, free - size}, {:file, id, size} | acc]) ++ tail
+  end
+
+  def insert(f, [x | tail], acc) do
+    insert(f, tail, [x | acc])
+  end
+end
+```
+
+```elixir
+rearranged2 = P2.rearrange(layout)
+```
+
+```elixir
+P1.checksum(rearranged2)
+```
