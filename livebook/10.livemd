@@ -1,0 +1,124 @@
+# Day 10
+
+## Part 1
+
+```elixir
+# input = File.stream!("10/example.txt")
+input = File.stream!("10/input.txt")
+```
+
+```elixir
+defmodule U do
+  def parse(input) do
+    {_, map } = Enum.reduce(input, {0, %{}}, fn line, {line_no, map} ->
+      {_, map} = Enum.reduce(String.codepoints(line), {0, map}, fn 
+        "\n", acc -> acc
+        char, {col, map} -> 
+        {col + 1, Map.put(map, {line_no, col}, String.to_integer(char))}
+      end)
+      {line_no + 1, map}
+    end)
+    map
+  end
+end
+```
+
+```elixir
+map = U.parse(input)
+```
+
+```elixir
+defmodule P1 do
+  def solve(map) do
+    starts = starts(map)
+    trailheads = trailheads(starts, map)
+    Enum.reduce(trailheads, 0, fn {_, reached}, acc ->
+      acc + Enum.count(reached)
+    end)
+  end
+  
+  def starts(map) do
+    for {pos, h} <- map,
+        h == 0 do
+      pos
+    end
+  end
+
+  def trailheads(positions, map) do
+    for pos <- positions do
+      {pos, trailhead(pos, map, MapSet.new())}
+    end
+  end
+
+  def trailheads(positions, map, reached) do
+    Enum.reduce(positions, reached, fn pos, reached ->
+      trailhead(pos, map, reached)
+    end)
+  end
+
+  def trailhead(pos, map, reached) do
+    h_cur = map[pos]
+
+    # IO.inspect({pos, h_cur, visited})
+
+    if h_cur == 9 do
+      MapSet.put(reached, pos)
+    else
+      next_positions(pos, map) |> trailheads(map, reached)
+    end
+  end
+
+  def next_positions({x, y} = pos, map) do
+    h_cur = map[pos]
+
+    for pos_next <- [{x + 1, y}, {x, y + 1}, {x - 1, y}, {x, y - 1}],
+        h_next = map[pos_next],
+        h_next != nil && h_next - h_cur == 1 do
+      pos_next
+    end
+  end
+end
+```
+
+```elixir
+P1.solve(map)
+```
+
+```elixir
+defmodule P2 do
+  def solve(map) do
+    starts = P1.starts(map)
+    trailheads = trailheads(starts, map)
+    Enum.reduce(trailheads, 0, fn {_, reached}, acc ->
+      acc + Enum.count(reached)
+    end)
+  end
+
+  def trailheads(positions, map) do
+    for pos <- positions do
+      {pos, trailhead(pos, map, [], MapSet.new())}
+    end
+  end
+
+  def trailheads(positions, map, path, reached) do
+    Enum.reduce(positions, reached, fn pos, reached ->
+      trailhead(pos, map, path, reached)
+    end)
+  end
+
+  def trailhead(pos, map, path, reached) do
+    h_cur = map[pos]
+
+    if h_cur == 9 do
+      MapSet.put(reached, [pos | path])
+    else
+      P1.next_positions(pos, map) |> trailheads(map, [pos | path], reached)
+    end
+  end
+
+end
+```
+
+```elixir
+P2.solve(map)
+```
