@@ -28,7 +28,6 @@ defmodule P1 do
   def steps(stones, 0), do: Enum.count(stones)
 
   def steps(stones, i) do
-    IO.inspect({i, stones |> Enum.uniq() |> Enum.count()})
     step(stones) |> steps(i - 1)
   end
 
@@ -100,8 +99,4 @@ end
 
 ```elixir
 P2.steps(stones)
-```
-
-```elixir
-Map.from_keys(stones, 1)
 ```
