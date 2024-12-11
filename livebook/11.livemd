@@ -1,0 +1,107 @@
+# Day 11
+
+## Part 1
+
+```elixir
+# input = "125 17"
+input = "2 77706 5847 9258441 0 741 883933 12"
+```
+
+```elixir
+defmodule U do
+  def parse(input) do
+    input  |> String.split() |> Enum.map(&String.to_integer/1)
+  end
+end
+```
+
+```elixir
+stones = U.parse(input)
+```
+
+```elixir
+defmodule P1 do
+  require Integer
+
+  def steps(stones), do: steps(stones, 25)
+
+  def steps(stones, 0), do: Enum.count(stones)
+
+  def steps(stones, i) do
+    IO.inspect({i, stones |> Enum.uniq() |> Enum.count()})
+    step(stones) |> steps(i - 1)
+  end
+
+  def step(stones) do
+    for stone <- stones,
+        stones = rule1(stone) || rule2(stone) || rule3(stone),
+        stone <- stones do
+      stone
+    end
+  end
+
+  def rule1(0), do: [1]
+  def rule1(_), do: nil
+
+  def rule2(stone) do
+    s = Integer.to_string(stone)
+    l = String.length(s)
+
+    if Integer.is_even(l) do
+      [
+        String.slice(s, 0, div(l, 2)) |> String.to_integer(),
+        String.slice(s, div(l, 2), div(l, 2)) |> String.to_integer()
+      ]
+    end
+  end
+
+  def rule3(stone), do: [stone * 2024]
+end
+```
+
+```elixir
+P1.steps(stones)
+```
+
+```elixir
+defmodule P2 do
+  require Integer
+
+  def steps(stones), do: steps(Map.from_keys(stones, 1), 75)
+
+  def steps(stones, 0), do: Map.values(stones) |> Enum.sum()
+
+  def steps(stones, i) do
+    # IO.inspect({25 - i, Map.values(stones) |> Enum.sum(), stones})
+    
+    Enum.reduce(stones, %{}, fn {n, c}, m ->
+      u = fn x -> x + c end
+      s = Integer.to_string(n)
+      l = String.length(s)
+      cond do
+        n == 0 ->
+          Map.update(m, 1, c, u)
+
+        Integer.is_even(l) ->
+          h = div(l, 2)
+
+          m
+          |> Map.update(String.slice(s, 0, h) |> String.to_integer(), c, u)
+          |> Map.update(String.slice(s, h, h) |> String.to_integer(), c, u)
+
+        true ->
+          Map.update(m, n * 2024, c, u)
+      end
+    end)
+    |> steps(i - 1)
+  end
+end
+```
+
+```elixir
+P2.steps(stones)
+```
+
+```elixir
+Map.from_keys(stones, 1)
+```
