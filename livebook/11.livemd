@@ -62,6 +62,8 @@ end
 P1.steps(stones)
 ```
 
+## Part 2
+
 ```elixir
 defmodule P2 do
   require Integer
