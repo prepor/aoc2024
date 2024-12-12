@@ -181,6 +181,8 @@ end
 P1.to_regions(map) |> P2.by_region() |> P1.calc()
 ```
 
+## Part 2. Corners counting
+
 ```elixir
 defmodule P2_Corners do
   def count_corners(map, {x, y} = pos) do
