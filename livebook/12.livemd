@@ -1,0 +1,182 @@
+# Day 12
+
+## Part 1
+
+```elixir
+# input = File.stream!("12/example.txt")
+input = File.stream!("12/input.txt")
+# input = "CFF
+# CCF
+# FFF
+# FFF
+# CFE" |> String.split()
+```
+
+```elixir
+defmodule U do
+  def parse(input) do
+    {_, map} = Enum.reduce(input, {0, %{}}, fn line, {row, map} ->
+      {_, map} =
+        Enum.reduce(String.codepoints(line), {0, map}, fn
+          "\n", acc ->
+            acc
+
+          char, {col, map} ->
+            pos = {col, row}
+            {col + 1, Map.put(map, pos, char)}
+        end)
+
+      {row + 1, map}
+    end)
+    map
+  end
+
+  def neighbors({x, y}) do
+    [{x + 1, y}, {x, y + 1}, {x - 1, y}, {x, y - 1}]
+  end
+end
+```
+
+```elixir
+map = U.parse(input)
+```
+
+```elixir
+defmodule P1 do
+  def find_region(_, [], _, _, _) do
+    make_ref()
+  end
+
+  def find_region(char, [pos | tail], map, map_new, visited) do
+    found = map_new[pos]
+
+    if found do
+      {_, region} = found
+      region
+    else
+      neighbors =
+        Enum.filter(U.neighbors(pos), fn pos ->
+          map[pos] == char && !MapSet.member?(visited, pos)
+        end)
+
+      find_region(char, neighbors ++ tail, map, map_new, MapSet.put(visited, pos))
+    end
+  end
+
+  def to_regions(map) do
+    Enum.reduce(Enum.sort(map), %{}, fn {pos, char}, map_new ->
+      region = find_region(char, [pos], map, map_new, MapSet.new())
+      Map.put(map_new, pos, {char, region})
+    end)
+  end
+
+  def by_region(map) do
+    Enum.reduce(map, %{}, fn {pos, {char, region}}, regions ->
+      per =
+        Enum.reduce(U.neighbors(pos), 0, fn pos, acc ->
+          case map[pos] do
+            {_, ^region} -> acc
+            _ -> acc + 1
+          end
+        end)
+
+      Map.update(regions, {char, region}, {1, per}, fn {area, reg_per} ->
+        {area + 1, reg_per + per}
+      end)
+    end)
+  end
+
+  def calc(regions) do
+    Enum.reduce(regions, 0, fn {_, {area, per}}, acc ->
+      acc + area * per
+    end)
+  end
+end
+```
+
+```elixir
+P1.to_regions(map) |> P1.by_region() |> P1.calc()
+```
+
+## Part 2
+
+```elixir
+defmodule P2 do
+  def sides({x, y}) do
+    [{x + 1, y, :r}, {x, y + 1, :b}, {x - 1, y, :l}, {x, y - 1, :t}]
+  end
+
+  def visit_direction(visited, {x, y}, dir, side, positions) do
+    visited = MapSet.put(visited, {x, y, side})
+
+    side_pos =
+      case side do
+        :r -> {x + 1, y}
+        :b -> {x, y + 1}
+        :l -> {x - 1, y}
+        :t -> {x, y - 1}
+      end
+
+    if MapSet.member?(positions, side_pos) do
+      visited
+    else
+      next =
+        case dir do
+          :r -> {x + 1, y}
+          :b -> {x, y + 1}
+          :l -> {x - 1, y}
+          :t -> {x, y - 1}
+        end
+
+      if MapSet.member?(positions, next) do
+        visit_direction(visited, next, dir, side, positions)
+      else
+        visited
+      end
+    end
+  end
+
+  def calc_per({x, y} = pos, positions, visited) do
+    Enum.reduce(sides(pos), {0, visited}, fn {next_x, next_y, side}, {per, visited} ->
+      cond do
+        MapSet.member?(positions, {next_x, next_y}) ->
+          {per, visited}
+
+        MapSet.member?(visited, {x, y, side}) ->
+          {per, visited}
+
+        true ->
+          {per + 1,
+           if side == :t || side == :b do
+             visited
+             |> visit_direction(pos, :r, side, positions)
+             |> visit_direction(pos, :l, side, positions)
+           else
+             visited
+             |> visit_direction(pos, :t, side, positions)
+             |> visit_direction(pos, :b, side, positions)
+           end}
+      end
+    end)
+  end
+
+  def by_region(map) do
+    by_region = Enum.group_by(map, fn {_, reg} -> reg end, fn {pos, _} -> pos end)
+
+    Enum.reduce(by_region, %{}, fn {region, positions}, regions ->
+      positions = MapSet.new(positions)
+
+      {per, _} =
+        Enum.reduce(positions, {0, MapSet.new()}, fn pos, {acc, visited} ->
+          {per, visited} = calc_per(pos, positions, visited)
+          {acc + per, visited}
+        end)
+      Map.put(regions, region, {Enum.count(positions), per})
+    end)
+  end
+end
+```
+
+```elixir
+P1.to_regions(map) |> P2.by_region() |> P1.calc()
+```
