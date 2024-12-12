@@ -5,11 +5,11 @@
 ```elixir
 # input = File.stream!("12/example.txt")
 input = File.stream!("12/input.txt")
-# input = "CFF
-# CCF
-# FFF
-# FFF
-# CFE" |> String.split()
+# input = "EEEEE
+# EXXXX
+# EEEEE
+# EXXXX
+# EEEEE" |> String.split()
 ```
 
 ```elixir
@@ -179,4 +179,47 @@ end
 
 ```elixir
 P1.to_regions(map) |> P2.by_region() |> P1.calc()
+```
+
+```elixir
+defmodule P2_Corners do
+  def count_corners(map, {x, y} = pos) do
+    cur_region = map[pos]
+
+    [r, rb, b, bl, l, lt, t, tr] =
+      [
+        {x + 1, y},
+        {x + 1, y + 1},
+        {x, y + 1},
+        {x - 1, y + 1},
+        {x - 1, y},
+        {x - 1, y - 1},
+        {x, y - 1},
+        {x + 1, y - 1}
+      ]
+      |> Enum.map(fn next_pos -> map[next_pos] == cur_region end)
+
+    outer_corners = Enum.count([{r, b}, {b, l}, {l, t}, {t, r}], fn x -> x == {false, false} end)
+
+    inner_corners =
+      Enum.count([{r, b, rb}, {b, l, bl}, {l, t, lt}, {t, r, tr}], fn x ->
+        x == {true, true, false}
+      end)
+    outer_corners + inner_corners
+  end
+
+  def by_region(map) do
+    Enum.reduce(map, %{}, fn {pos, region}, regions ->
+      corners = count_corners(map, pos)
+
+      Map.update(regions, region, {1, corners}, fn {count, reg_corners} ->
+        {count + 1, reg_corners + corners}
+      end)
+    end)
+  end
+end
+```
+
+```elixir
+P1.to_regions(map) |> P2_Corners.by_region() |> P1.calc()
 ```
