@@ -1,0 +1,90 @@
+# Day 13
+
+## Part 1
+
+```elixir
+# input = File.stream!("13/example.txt")
+input = File.stream!("13/input.txt")
+```
+
+```elixir
+defmodule U do
+  @r ~r/: X[+=](\d+), Y[+=](\d+)/
+  def parse(input) do
+    input |> Stream.chunk_every(4) |> Enum.map(fn
+      [a,b,p | _] ->
+        [_, ax, ay] = Regex.run(@r, a)
+        [_, bx, by] = Regex.run(@r, b)
+        [_, px, py] = Regex.run(@r, p)
+        [ax,ay,bx,by,px,py]= Enum.map([ax,ay,bx,by,px,py], &String.to_integer/1)
+        {{ax, ay}, {bx, by}, {px, py}}
+    end)
+  end
+end
+```
+
+```elixir
+data = U.parse(input)
+```
+
+```elixir
+defmodule P1 do
+  def tokens({_, {bx, by}, {px, py}} = input) do
+    # IO.inspect(input)
+    b = max(:math.ceil(px / bx) |> trunc, :math.ceil(py / by) |> trunc)
+    tokens(input, 0, b)
+  end
+
+  def tokens(_, _, 0), do: 0
+
+  def tokens({{ax, ay}, {bx, by}, {px, py}} = input, a, b) do
+    cx = ax * a + bx * b
+    cy = ay * a + by * b
+
+    cond do
+      cx == px && cy == py -> a * 3 + b
+      cx > px || cy > py -> tokens(input, a, b - 1)
+      true -> tokens(input, a + 1, b)
+    end
+  end
+
+  def solve(data) do
+    data |> Enum.map(&tokens/1) |> Enum.sum()
+  end
+end
+```
+
+```elixir
+P1.solve(data)
+```
+
+## Part 2
+
+```elixir
+defmodule P2 do
+  def tokens({{ax, ay}, {bx, by}, {px, py}}) do  
+    px = px + 10000000000000
+    py = py + 10000000000000
+    det = ax * by - ay * bx
+    if det == 0 do
+      0
+    else
+      adet = px * by - py * bx
+      bdet = ax * py - ay * px
+      if rem(adet, det) != 0 || rem(bdet, det) != 0 do
+        0
+      else
+        div(adet, det) * 3 + div(bdet, det)
+      end
+    end
+  end
+
+  def solve(data) do
+    data |> Enum.map(&tokens/1) |> Enum.sum()
+  end
+end
+```
+
+```elixir
+P2.solve(data)
+```
