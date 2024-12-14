@@ -1,0 +1,114 @@
+# Day 14
+
+## Part 1
+
+```elixir
+# {input, size} = {File.read!("14/example.txt"), {11, 7}}
+{input, size} = {File.read!("14/input.txt"), {101, 103}}
+```
+
+```elixir
+defmodule U do
+  def parse(input) do
+    String.split(input, "\n", trim: true) |> Enum.map(fn l ->
+      [_, x, y, vx, vy] = Regex.run(~r/p=(\d+),(\d+) v=(-?\d+),(-?\d+)/, l)
+      [x, y, vx, vy] = Enum.map([x, y, vx, vy], &String.to_integer/1)
+      {{x, y}, {vx, vy}}
+    end)
+  end
+end
+```
+
+```elixir
+robots = U.parse(input)
+```
+
+```elixir
+defmodule P1 do
+  def step({{x, y}, {vx, vy} = v}, {w, h}) do
+    x = (x + vx) |> handle_edge(w)
+    y = (y + vy) |> handle_edge(h)
+    {{x, y}, v}
+  end
+
+  def handle_edge(coord, max) do
+    cond do
+      coord < 0 -> max + coord
+      coord >= max -> coord - max
+      true -> coord
+    end
+  end
+
+  def steps(robot, _, 0), do: robot
+  def steps(robot, s, i), do: step(robot, s) |> steps(s, i - 1)
+
+
+  def wait(robots, size, seconds) do
+    Enum.map(robots, fn r -> steps(r, size, seconds) end)
+  end
+
+  def to_groups(robots, {w, h}) do
+    mx = w / 2 |> trunc
+    my = h / 2 |> trunc
+    Enum.reduce(robots, %{}, fn 
+      {{x, y}, _}, acc when x == mx or y == my -> acc
+      {{x, y}, _}, acc ->
+      k = {x > mx, y > my}
+        Map.update(acc, k, 1, fn v -> v + 1 end)
+    end)
+  end
+
+  def count(groups) do
+    Map.values(groups) |> Enum.reduce(&*/2)
+  end
+end
+```
+
+```elixir
+P1.wait(robots, size, 100) |> P1.to_groups(size) |> P1.count
+```
+
+## Part 2
+
+```elixir
+defmodule P2 do
+  def step(robots, size) do
+    Enum.map(robots, fn r -> P1.step(r, size) end)
+  end
+
+  def find(robots, size, step) do
+    IO.inspect(step)
+    if is_tree(robots, size) do
+      step
+    else
+      step(robots, size) |> find(size, step + 1)
+    end
+  end
+
+  def is_tree(robots, {w, h}) do
+    m = MapSet.new(robots, fn {pos, _} -> pos end)
+    Enum.any?(0..(h - 1), fn y ->
+      detect_10_row(y, m, w)
+    end)
+  end
+  
+  def detect_10_row(y, m, w) do
+    detect_10_row(0, y, 0, m, w)
+  end
+  def detect_10_row(_, _, 10, _, _), do: true
+  def detect_10_row(x, _, _, _, x), do: false
+  def detect_10_row(x, y, n, m, w) do
+    detected = MapSet.member?(m, {x, y})
+    n = if detected do
+      n + 1
+    else
+      0
+    end
+    detect_10_row(x + 1, y, n, m, w)
+  end
+end
+```
+
+```elixir
+P2.find(robots, size, 0)
+```
