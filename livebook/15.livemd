@@ -1,0 +1,318 @@
+# Day 15
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"}
+])
+```
+
+## Part 1
+
+```elixir
+input = File.read!("15/example.txt") |> String.split("\n")
+# input = File.read!("15/input.txt") |> String.split("\n")
+# input = "########
+# #..O.O.#
+# ##@.O..#
+# #...O..#
+# #.#.O..#
+# #...O..#
+# #......#
+# ########
+
+# <^^>>>vv<v>>v<<" |> String.split("\n")
+
+# input = "#######
+# #...#.#
+# #.....#
+# #..OO@#
+# #..O..#
+# #.....#
+# #######
+
+# <vv<<^^<<^^"  |> String.split("\n")
+```
+
+```elixir
+defmodule U do
+  def parse(input) do
+    parse(input, :map, {{0, 0}, {0, 0}, %{}})
+  end
+
+  def parse(["" | tail], :map, {size, robot, m}) do
+    parse(tail, :moves, {size, robot, m, []})
+  end
+
+  def parse([line | tail], :map, {{_, y}, robot, m}) do
+    {w, robot, m} =
+      Enum.reduce(String.codepoints(line), {0, robot, m}, fn char, {x, robot, m} ->
+        {m, robot} =
+          case char do
+            "." -> {m, robot}
+            "#" -> {Map.put(m, {x, y}, :wall), robot}
+            "@" -> {Map.put(m, {x, y}, :robot), {x, y}}
+            "O" -> {Map.put(m, {x, y}, :box), robot}
+          end
+
+        {x + 1, robot, m}
+      end)
+
+    parse(tail, :map, {{w, y + 1}, robot, m})
+  end
+
+  def parse([], :moves, res), do: res
+
+  def parse([line | tail], :moves, {size, robot, m, moves}) do
+    parse(
+      tail,
+      :moves,
+      {size, robot, m,
+       moves ++
+         Enum.map(String.codepoints(line), fn
+           "^" -> :u
+           "v" -> :d
+           ">" -> :r
+           "<" -> :l
+         end)}
+    )
+  end
+
+  def render({w, h}, map) do
+    Enum.map(0..(h - 1), fn y ->
+      [
+        Enum.map(0..(w - 1), fn x ->
+          o = map[{x, y}]
+
+          case o do
+            :wall -> "#"
+            :robot -> [:red, "@", :reset]
+            :box -> [:green, "O", :reset]
+            nil -> " "
+          end
+        end),
+        "\n"
+      ]
+    end)
+    |> IO.ANSI.format()
+    |> IO.iodata_to_binary()
+    |> Kino.Text.new(terminal: true)
+  end
+end
+```
+
+```elixir
+{size, robot, map, moves} = U.parse(input)
+```
+
+```elixir
+U.render(size, map)
+```
+
+```elixir
+defmodule P1 do
+  def move(move, pos, map) do
+    n_pos = next_pos(move, pos)
+    o = map[n_pos]
+    case o do
+      nil -> {n_pos, map |> Map.delete(pos) |> Map.put(n_pos, :robot)}
+      :wall -> {pos, map}
+      :box -> case move_box(move, n_pos, map) do
+        nil -> {pos, map}
+        map -> {n_pos, map |> Map.delete(pos) |> Map.put(n_pos, :robot)}
+      end
+    end
+  end
+
+  def move_box(move, pos, map) do
+    n_pos = next_pos(move, pos)
+    o = map[n_pos]
+    case o do
+      nil -> map |> Map.delete(pos) |> Map.put(n_pos, :box)
+      :wall -> nil
+      :box -> 
+        case move_box(move, n_pos, map) do
+          nil -> nil
+          map -> map |> Map.delete(pos) |> Map.put(n_pos, :box)
+        end
+    end
+  end
+
+  def next_pos(move, {x, y}) do
+    case move do
+      :u -> {x, y - 1}
+      :d -> {x, y + 1}
+      :l -> {x - 1, y}
+      :r -> {x + 1, y}
+    end
+  end
+
+  def gps(m) do
+    Enum.reduce(m, 0, fn {{x, y}, o}, acc ->
+      case o do
+        :box -> acc + x + (y * 100)
+        _ -> acc
+      end
+    end)
+  end
+end
+```
+
+```elixir
+frame = Kino.Frame.new() |> Kino.render()
+
+{_, map} = Enum.reduce(moves, {robot, map}, fn move, {robot, map} ->
+  # Kino.Frame.render(frame, U.render(size, map))
+  # :timer.sleep(40)
+  P1.move(move, robot, map)
+end)
+
+Kino.Frame.render(frame, U.render(size, map))
+
+P1.gps(map)
+```
+
+```elixir
+defmodule U2 do
+  def parse(input) do
+    parse(input, :map, {{0, 0}, {0, 0}, %{}})
+  end
+
+  def parse(["" | tail], :map, {size, robot, m}) do
+    U.parse(tail, :moves, {size, robot, m, []})
+  end
+
+  def parse([line | tail], :map, {{_, y}, robot, m}) do
+    {w, robot, m} =
+      Enum.reduce(String.codepoints(line), {0, robot, m}, fn char, {x, robot, m} ->
+        {m, robot} =
+          case char do
+            "." -> {m, robot}
+            "#" -> {m |> Map.put({x, y}, :wall) |> Map.put({x + 1, y}, :wall), robot}
+            "@" -> {Map.put(m, {x, y}, :robot), {x, y}}
+            "O" -> {m |> Map.put({x, y}, {:b, :l}) |> Map.put({x + 1, y}, {:b, :r}), robot}
+          end
+
+        {x + 2, robot, m}
+      end)
+
+    parse(tail, :map, {{w, y + 1}, robot, m})
+  end
+
+  def render({w, h}, map) do
+    Enum.map(0..(h - 1), fn y ->
+      [
+        Enum.map(0..(w - 1), fn x ->
+          o = map[{x, y}]
+
+          case o do
+            :wall -> "#"
+            :robot -> [:red, "@", :reset]
+            {:b, :l} -> [:green, "[", :reset]
+            {:b, :r} -> [:green, "]", :reset]
+            nil -> "."
+          end
+        end),
+        "\n"
+      ]
+    end)
+    |> IO.ANSI.format()
+    |> IO.iodata_to_binary()
+    |> Kino.Text.new(terminal: true)
+  end
+end
+```
+
+```elixir
+{size, robot, map, moves} = U2.parse(input)
+```
+
+```elixir
+U2.render(size, map)
+```
+
+```elixir
+defmodule P2 do
+  def move(move, {x, y} = pos, m) do
+    o = m[pos]
+
+    case o do
+      nil ->
+        m
+
+      :robot ->
+        n_pos = P1.next_pos(move, pos)
+        m2 = move(move, n_pos, m)
+
+        if m2 do
+          m2 = m2 |> Map.delete(pos) |> Map.put(n_pos, o)
+          {n_pos, m2}
+        else
+          {pos, m}
+        end
+
+      :wall ->
+        nil
+
+      {:b, bpart} ->
+        to_move =
+          case {move, bpart} do
+            {:l, :r} -> [{x - 2, y}]
+            {:r, :l} -> [{x + 2, y}]
+            {:u, :l} -> [{x, y - 1}, {x + 1, y - 1}]
+            {:d, :l} -> [{x, y + 1}, {x + 1, y + 1}]
+            {:u, :r} -> [{x - 1, y - 1}, {x, y - 1}]
+            {:d, :r} -> [{x - 1, y + 1}, {x, y + 1}]
+          end
+
+        m2 =
+          Enum.reduce_while(to_move, m, fn pos, m ->
+            m2 = move(move, pos, m)
+
+            if m2 do
+              {:cont, m2}
+            else
+              {:halt, nil}
+            end
+          end)
+
+        if m2 do
+          me =
+            case bpart do
+              :l -> [{pos, {:b, :l}}, {{x + 1, y}, {:b, :r}}]
+              :r -> [{{x - 1, y}, {:b, :l}}, {pos, {:b, :r}}]
+            end
+          new_me_update = case move do
+            :r -> fn {x, y} -> {x + 1, y} end
+            :d -> fn {x, y} -> {x, y + 1} end
+            :l -> fn {x, y} -> {x - 1, y} end
+            :u -> fn {x, y} -> {x, y - 1} end
+          end
+          m2 = Enum.reduce(me, m2, fn {pos, _}, m -> Map.delete(m, pos) end)
+          Enum.reduce(me, m2, fn {pos, o}, m -> Map.put(m, new_me_update.(pos), o) end)
+        end
+    end
+  end
+
+  def gps(m) do
+    Enum.reduce(m, 0, fn {{x, y}, o}, acc ->
+      case o do
+        {:b, :l} -> acc + x + y * 100
+        _ -> acc
+      end
+    end)
+  end
+end
+```
+
+```elixir
+frame = Kino.Frame.new() |> Kino.render()
+
+{_, map} = Enum.reduce(moves, {robot, map}, fn move, {robot, map} ->
+  :timer.sleep(40)
+  {_, map} = res = P2.move(move, robot, map)
+  Kino.Frame.render(frame, U2.render(size, map))
+  res
+end)
+
+P2.gps(map)
+```
