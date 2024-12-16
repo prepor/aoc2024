@@ -1,0 +1,196 @@
+# Day 16
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"}
+])
+```
+
+## Part 1
+
+```elixir
+# input = File.read!("16/example.txt") |> String.split("\n")
+input = File.read!("16/input.txt") |> String.split("\n")
+```
+
+```elixir
+defmodule U do
+  def parse(input) do
+    parse(input, {{0, 0}, {0, 0}, {0, 0}, %{}})
+  end
+
+  def parse([], res), do: res
+
+  def parse([line | tail], {{_, y}, r, edge, m}) do
+    {w, r, edge, m} =
+      Enum.reduce(String.codepoints(line), {0, r, edge, m}, fn char, {x, r, edge, m} ->
+        {m, r, edge} =
+          case char do
+            "." -> {m, r, edge}
+            "S" -> {m, {{x, y}, :l}, edge}
+            "E" -> {Map.put(m, {x, y}, :edge), r, {x, y}}
+            "#" -> {Map.put(m, {x, y}, :wall), r, edge}
+          end
+
+        {x + 1, r, edge, m}
+      end)
+
+    parse(tail, {{w, y + 1}, r, edge, m})
+  end
+
+  def render({w, h}, map, front) do
+    Enum.map(0..(h - 1), fn y ->
+      [
+        Enum.map(0..(w - 1), fn x ->
+          f = Enum.find_value(front, fn 
+            {{{^x, ^y}, dir}, _} -> dir 
+            _ -> nil 
+            end)
+          o = map[{x, y}]
+
+          if f do
+            [
+              :red,
+              case f do
+                :r -> ">"
+                :d -> "v"
+                :l -> "<"
+                :u -> "^"
+              end,
+              :reset
+            ]
+          else
+            case o do
+              :wall -> "#"
+              :edge -> [:green, "E", :reset]
+              nil -> "."
+            end
+          end
+        end),
+        "\n"
+      ]
+    end)
+    |> IO.ANSI.format()
+    |> IO.iodata_to_binary()
+    |> Kino.Text.new(terminal: true)
+  end
+end
+```
+
+```elixir
+{size, start, edge, map} = U.parse(input)
+```
+
+```elixir
+defmodule P1 do
+  def search({pos, dir}, map, clb) do
+    search(%{{pos, dir} => 0}, MapSet.new(), map, clb)
+  end
+
+  def search(front, visited, map, clb) do
+    clb.(front)
+    {{pos, dir} = k, cost} = cheapest(front)
+    front = Map.delete(front, k)
+    if map[pos] == :edge do
+      cost
+    else
+      visited = MapSet.put(visited, k)
+      front = Enum.reduce(neighbors(pos, dir, map), front, fn {k, ncost}, front ->
+        if MapSet.member?(visited, k) do
+          front
+        else
+          cost = cost + ncost
+          case front[k] do
+            nil -> Map.put(front, k, cost)
+            in_front_cost when cost < in_front_cost -> Map.put(front, k, cost)
+            _ -> front
+          end
+        end
+      end)
+      search(front, visited, map, clb)
+    end
+  end
+
+  def cheapest(front) do
+    [x | _ ] = Enum.sort(front, fn {_, cost1}, {_, cost2} -> cost1 <= cost2 end)
+    x
+  end
+
+  def neighbors({x, y}, dir, map) do
+    Enum.filter(
+      [
+        {{{x + 1, y}, :r}, cost(dir, :r)},
+        {{{x, y + 1}, :d}, cost(dir, :d)},
+        {{{x - 1, y}, :l}, cost(dir, :l)},
+        {{{x, y - 1}, :u}, cost(dir, :u)}
+      ],
+      fn {{pos, _}, _} ->
+        map[pos] != :wall
+      end
+    )
+  end
+
+  def cost(dir1, dir2) do
+    case {dir1, dir2} do
+      {x, x} -> 1
+      {:r, x} when x in [:d, :u] -> 1001
+      {:r, :l} -> 2001
+      {:d, x} when x in [:r, :l] -> 1001
+      {:d, :u} -> 2001
+      {:l, x} when x in [:u, :d] -> 1001
+      {:l, :r} -> 2001
+      {:u, x} when x in [:l, :r] -> 1001
+      {:u, :d} -> 2001
+    end
+  end
+end
+```
+
+```elixir
+frame = Kino.Frame.new() |> Kino.render()
+P1.search(start, map, fn front ->
+  # Kino.Frame.render(frame, U.render(size, map, front))
+  # :timer.sleep(100)
+end)
+```
+
+```elixir
+defmodule P2 do
+  def search({pos, dir}, map) do
+    search(%{{pos, dir} => {0, [pos]}}, MapSet.new(), map, MapSet.new())
+  end
+
+  def search(front, visited, map, res) do
+    {{pos, dir} = k, {cost, path}} = cheapest(front)
+    front = Map.delete(front, k)
+    visited = MapSet.put(visited, k)
+    if map[pos] == :edge do
+      (Enum.reduce(path, MapSet.new(), fn x, acc -> MapSet.put(acc, x) end) |> Enum.count())
+    else
+      front = Enum.reduce(P1.neighbors(pos, dir, map), front, fn {{pos, _} = k, ncost}, front ->
+        if MapSet.member?(visited, k) do
+          front
+        else
+          cost = cost + ncost
+          case front[k] do
+            nil -> Map.put(front, k, {cost, [pos | path]})
+            {in_front_cost, _} when cost < in_front_cost -> Map.put(front, k, {cost, [pos | path]})
+            {in_front_cost, in_front_path} when cost == in_front_cost -> Map.put(front, k, {cost, in_front_path ++ path})
+            _ -> front
+          end
+        end
+      end)
+      search(front, visited, map, res)
+    end
+  end
+
+  def cheapest(front) do
+    [x | _ ] = Enum.sort(front, fn {_, {cost1, _}}, {_, {cost2, _}} -> cost1 <= cost2 end)
+    x
+  end
+end
+```
+
+```elixir
+P2.search(start, map)
+```
