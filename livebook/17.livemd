@@ -90,8 +90,7 @@ defmodule P2 do
       res = n + Bitwise.bsl(i, 48 - shift * 3),
       exec_res = P1.exec(%{m | a: res}),
       exec_res |> Enum.reverse() |> Enum.take(shift) == expected |> Enum.reverse() |> Enum.take(shift),
-      n <- solve(m, res, shift + 1, expected),
-      n do
+      n <- solve(m, res, shift + 1, expected) do
       n
     end
   end
