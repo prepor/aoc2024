@@ -1,0 +1,103 @@
+# Day 17
+
+## Part 1
+
+```elixir
+# input = File.read!("17/example.txt")
+# input = "Register A: 2024
+# Register B: 0
+# Register C: 0
+
+# Program: 0,3,5,4,3,0"
+input = File.read!("17/input.txt")
+```
+
+```elixir
+defmodule U do
+  def parse(input) do
+    [_, a, b, c, p] =
+      Regex.run(
+        ~r"Register A: (\d+)\nRegister B: (\d+)\nRegister C: (\d+)\n\nProgram: ([\d,]+)",
+        input
+      )
+
+    [a, b, c] = Enum.map([a, b, c], &String.to_integer/1)
+    p = Enum.map(String.split(p, ","), &String.to_integer/1)
+    {_, res} =
+      Enum.reduce(p, {0, %{a: a, b: b, c: c, size: length(p)}}, fn op, {i, res} ->
+        {i + 1, Map.put(res, i, op)}
+      end)
+
+    Map.put(res, :expected, p)
+  end
+end
+```
+
+```elixir
+m = U.parse(input)
+```
+
+```elixir
+defmodule P1 do
+  def exec(m), do: exec(0, m, [])
+  def exec(i, m, out) do
+    {ins, oper} = {m[i], m[i+1]}
+    case ins do
+      nil -> Enum.reverse(out)
+      x when x in [0, 6, 7] -> 
+        reg = case x do
+          0 -> :a
+          6 -> :b
+          7 -> :c
+        end
+        res = (m[:a] / (2 ** combo(oper, m))) |> trunc
+        exec(i + 2, %{m | reg => res}, out)
+      1 ->
+        exec(i + 2, %{m | b: Bitwise.bxor(m[:b], oper)}, out)
+      2 ->
+        exec(i + 2, %{m | b: rem(combo(oper, m), 8)}, out)
+      3 ->
+        if m[:a] == 0 do
+          exec(i + 2, m, out)
+        else
+          exec(oper, m, out)
+        end
+      4 ->
+        exec(i + 2, %{m | b: Bitwise.bxor(m[:b], m[:c])}, out)
+      5 ->
+        exec(i + 2, m, [rem(combo(oper, m), 8) | out])
+    end
+  end
+
+  def combo(oper, _) when oper in [0,1,2, 3], do: oper
+  def combo(4, m), do: m[:a]
+  def combo(5, m), do: m[:b]
+  def combo(6, m), do: m[:c]
+end
+```
+
+```elixir
+P1.exec(m)
+```
+
+## Part 2
+
+```elixir
+defmodule P2 do
+  def solve(_, n, 17, _), do: [n]
+  def solve(m, n, shift, expected) do
+    for i <- 0..7,
+      res = n + Bitwise.bsl(i, 48 - shift * 3),
+      exec_res = P1.exec(%{m | a: res}),
+      exec_res |> Enum.reverse() |> Enum.take(shift) == expected |> Enum.reverse() |> Enum.take(shift),
+      n <- solve(m, res, shift + 1, expected),
+      n do
+      n
+    end
+  end
+end
+```
+
+```elixir
+P2.solve(m, 0, 1, [2,4,1,5,7,5,4,3,1,6,0,3,5,5,3,0])
+```
