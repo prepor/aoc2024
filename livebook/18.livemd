@@ -1,0 +1,80 @@
+# Day 18
+
+## Part 1
+
+```elixir
+# {input, size, to_take} = {File.stream!("18/example.txt"), 7, 12}
+{input, size, to_take} = {File.stream!("18/input.txt"), 71, 1024}
+```
+
+```elixir
+defmodule U do
+  def parse(input) do
+    Enum.map(input, fn l ->
+      [_, x, y] = Regex.run(~r"(\d+),(\d+)", l)
+      {x |> String.to_integer(), y |> String.to_integer()}
+    end)
+  end
+end
+```
+
+```elixir
+defmodule P1 do
+  def find(map, size) do
+    find(%{{0,0} => 0}, MapSet.new(), map, size)
+  end
+
+  def find(front, _, _, _) when front == %{}, do: nil
+
+  def find(front, expanded, map, size) do
+    {node, cost} = cheapest(front)
+    front = Map.delete(front, node)
+    if node == {size - 1, size - 1} do
+      cost
+    else
+      expanded = MapSet.put(expanded, node)
+      front = Enum.reduce(neighbours(node, map, size), front, fn n, front ->
+        if MapSet.member?(expanded, n) do
+          front
+        else
+          cost = cost + 1
+          case front[n] do
+            nil -> Map.put(front, n, cost)
+            {in_front_cost, _} when cost < in_front_cost -> Map.put(front, n, cost)
+            _ -> front
+          end
+        end
+      end)
+      find(front, expanded, map, size)
+    end
+    
+  end
+
+  def neighbours({x, y}, map, size) do
+    for {x, y} = pos <- [{x + 1, y}, {x, y + 1}, {x - 1, y}, {x, y - 1}],
+        x >= 0 && x < size && y >= 0 && y < size && !MapSet.member?(map, pos) do
+      pos
+    end
+  end
+
+  def cheapest(front) do
+    [x | _ ] = Enum.sort(front, fn {_, cost1}, {_, cost2} -> cost1 <= cost2 end)
+    x
+  end
+end
+```
+
+```elixir
+P1.find(input |> Stream.take(to_take) |> U.parse() |> MapSet.new(), size)
+```
+
+```elixir
+Enum.reduce_while(input |> U.parse(), MapSet.new(), fn pos, acc ->
+  acc = MapSet.put(acc, pos)
+  if P1.find(acc, size) do
+    {:cont, acc}
+  else
+    {:halt, pos}
+  end
+end)
+```
