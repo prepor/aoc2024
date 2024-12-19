@@ -1,0 +1,99 @@
+# Day 19
+
+## Part 1
+
+```elixir
+# input = File.read!("19/example.txt") |> String.split("\n")
+input = File.read!("19/input.txt") |> String.split("\n")
+```
+
+```elixir
+defmodule U do
+  def parse([patterns, "" | designs]) do
+    {patterns |> String.split(", "), designs |> Enum.filter(fn x -> x != "" end)}
+  end
+end
+```
+
+```elixir
+{patterns, designs} = U.parse(input)
+```
+
+```elixir
+patterns = Enum.sort_by(patterns, &String.length/1, :desc)
+```
+
+```elixir
+defmodule P1 do
+  def possible?(_, []), do: false
+
+  def possible?(design, [p | tail]) do
+    parts = String.split(design, p, trim: true)
+
+    case parts do
+      [] ->
+        true
+
+      [design] ->
+        possible?(design, tail)
+
+      _ ->
+        res =
+          Enum.all?(parts, &possible?(&1, tail))
+
+        res || possible?(design, tail)
+    end
+  end
+end
+```
+
+```elixir
+Enum.count(designs, fn d ->
+  res = P1.possible?(d, patterns)
+  # IO.inspect({d, "=>", res})
+  res
+end)
+```
+
+## Part 2
+
+```elixir
+defmodule P2 do
+  def possible(design, patterns) do
+    {res, _} = possible(design, patterns, %{})
+    res
+  end
+
+  def possible("", _, memo), do: {1, memo}
+
+  def possible(design, patterns, memo) do
+    case memo[design] do
+      nil ->
+        {res, memo} =
+          Enum.reduce(patterns, {0, memo}, fn p, {acc, memo} ->
+            case design do
+              ^p <> tail ->
+                {res, memo} = possible(tail, patterns, memo)
+                {acc + res, memo}
+
+              _ ->
+                {acc, memo}
+            end
+          end)
+
+        {res, Map.put(memo, design, res)}
+
+      memoized ->
+        {memoized, memo}
+    end
+  end
+end
+```
+
+```elixir
+Enum.reduce(designs, 0, fn d, acc ->
+  res = P2.possible(d, patterns)
+  # IO.inspect({d, "=>", res})
+  acc + res
+end)
+```
